@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4×6 Label Cropper</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  h1 { margin: 0 0 16px; font-size: 22px; font-weight: 600; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .subtitle { color: #6e6e73; margin: 0 0 20px; font-size: 14px; }
+
+  .dropzone {
+    border: 2px dashed #c7c7cc;
+    border-radius: 14px;
+    padding: 80px 40px;
+    text-align: center;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: #007aff;
+    background: #f0f7ff;
+  }
+  .dropzone .primary {
+    font-size: 18px;
+    margin: 0 0 8px;
+    color: #1d1d1f;
+  }
+  .dropzone .secondary {
+    margin: 0;
+    color: #6e6e73;
+    font-size: 14px;
+  }
+
+  .workspace { display: none; }
+  .workspace.active { display: block; }
+
+  .toolbar {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 7px;
+    background: #e5e5ea;
+    color: #1d1d1f;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.1s;
+  }
+  button:hover { background: #d1d1d6; }
+  button:active { background: #c7c7cc; }
+  button.primary { background: #007aff; color: white; }
+  button.primary:hover { background: #0063cc; }
+  button.primary:active { background: #004a99; }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    color: #1d1d1f;
+  }
+  .toggle input { margin: 0; }
+
+  .divider {
+    width: 1px;
+    height: 22px;
+    background: #d1d1d6;
+    margin: 0 2px;
+  }
+
+  .info {
+    color: #6e6e73;
+    font-size: 13px;
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .canvas-wrap {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: auto;
+    max-height: calc(100vh - 180px);
+  }
+  .canvas-container {
+    position: relative;
+    display: inline-block;
+    margin: 0 auto;
+  }
+  .canvas-wrap { text-align: center; }
+  canvas {
+    display: block;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  .crop-overlay {
+    position: absolute;
+    border: 2px solid #007aff;
+    background: rgba(0, 122, 255, 0.08);
+    cursor: move;
+    box-sizing: border-box;
+  }
+  .crop-handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border: 2px solid #007aff;
+    border-radius: 50%;
+    z-index: 2;
+  }
+  .crop-handle.nw { top: -8px; left: -8px; cursor: nwse-resize; }
+  .crop-handle.ne { top: -8px; right: -8px; cursor: nesw-resize; }
+  .crop-handle.sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
+  .crop-handle.se { bottom: -8px; right: -8px; cursor: nwse-resize; }
+
+  .hint {
+    color: #6e6e73;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  .page-nav { display: flex; gap: 6px; align-items: center; }
+  .page-nav button { padding: 6px 10px; }
+  .page-nav .pageInfo { font-size: 13px; color: #6e6e73; min-width: 60px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>4×6 Label Cropper</h1>
+  <p class="subtitle">Drop a shipping-label PDF, drag the selection over just the label, download a clean 4×6 PDF ready for your label printer.</p>
+
+  <div class="dropzone" id="dropzone">
+    <p class="primary">Drop a shipping-label PDF here</p>
+    <p class="secondary">or click to choose a file</p>
+    <input type="file" id="fileInput" accept="application/pdf" style="display:none">
+  </div>
+
+  <div class="workspace" id="workspace">
+    <div class="toolbar">
+      <button id="btnRightHalf">Right half</button>
+      <button id="btnLeftHalf">Left half</button>
+      <button id="btnTopHalf">Top half</button>
+      <button id="btnBottomHalf">Bottom half</button>
+      <button id="btnFullPage">Full page</button>
+      <div class="divider"></div>
+      <label class="toggle"><input type="checkbox" id="lockAspect" checked> Lock 4:6</label>
+      <div class="divider"></div>
+      <div class="page-nav" id="pageNav" style="display:none">
+        <button id="btnPrev">◀</button>
+        <span class="pageInfo" id="pageInfo">1 / 1</span>
+        <button id="btnNext">▶</button>
+      </div>
+      <div class="divider" id="divPageNav" style="display:none"></div>
+      <button id="btnReset">New file</button>
+      <button class="primary" id="btnDownload">Download 4×6 PDF</button>
+      <span class="info" id="info"></span>
+    </div>
+    <div class="canvas-wrap">
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="canvas"></canvas>
+        <div class="crop-overlay" id="cropOverlay">
+          <div class="crop-handle nw" data-handle="nw"></div>
+          <div class="crop-handle ne" data-handle="ne"></div>
+          <div class="crop-handle sw" data-handle="sw"></div>
+          <div class="crop-handle se" data-handle="se"></div>
+        </div>
+      </div>
+      <p class="hint">Drag the blue box to move · drag a corner to resize · hold 4:6 lock for label printers</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const { PDFDocument } = PDFLib;
+
+// --- State ---
+let currentFile = null;
+let currentArrayBuffer = null;
+let pdfDoc = null;           // pdf.js doc
+let currentPageIdx = 0;      // 0-based
+let totalPages = 1;
+let renderScale = 1.0;
+let pdfPageWidth = 0;        // PDF points
+let pdfPageHeight = 0;
+let canvasPixelW = 0;
+let canvasPixelH = 0;
+let crop = { x: 0, y: 0, w: 0, h: 0 };  // canvas pixels
+
+// --- Elements ---
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const workspace = document.getElementById('workspace');
+const canvas = document.getElementById('canvas');
+const overlay = document.getElementById('cropOverlay');
+const infoEl = document.getElementById('info');
+const lockAspect = document.getElementById('lockAspect');
+const pageNav = document.getElementById('pageNav');
+const divPageNav = document.getElementById('divPageNav');
+const pageInfoEl = document.getElementById('pageInfo');
+
+// --- File handling ---
+['dragover', 'dragenter'].forEach(ev => {
+  dropzone.addEventListener(ev, e => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+});
+['dragleave', 'drop'].forEach(ev => {
+  dropzone.addEventListener(ev, e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+  });
+});
+dropzone.addEventListener('drop', e => {
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+// Accept drops anywhere in the window
+window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') handleFile(f);
+});
+
+async function handleFile(file) {
+  if (file.type !== 'application/pdf') {
+    alert('Please drop a PDF file.');
+    return;
+  }
+  currentFile = file;
+  currentArrayBuffer = await file.arrayBuffer();
+  pdfDoc = await pdfjsLib.getDocument({ data: currentArrayBuffer.slice(0) }).promise;
+  totalPages = pdfDoc.numPages;
+  currentPageIdx = 0;
+
+  if (totalPages > 1) {
+    pageNav.style.display = 'flex';
+    divPageNav.style.display = 'block';
+  } else {
+    pageNav.style.display = 'none';
+    divPageNav.style.display = 'none';
+  }
+
+  await renderPage(currentPageIdx);
+
+  dropzone.style.display = 'none';
+  workspace.classList.add('active');
+}
+
+async function renderPage(idx) {
+  const page = await pdfDoc.getPage(idx + 1);
+  const unscaled = page.getViewport({ scale: 1 });
+  pdfPageWidth = unscaled.width;
+  pdfPageHeight = unscaled.height;
+
+  // Fit canvas to available width
+  const containerW = Math.min(1100, window.innerWidth - 120);
+  const containerH = window.innerHeight - 260;
+  const scaleW = containerW / pdfPageWidth;
+  const scaleH = containerH / pdfPageHeight;
+  renderScale = Math.min(scaleW, scaleH, 2.5);
+  if (renderScale < 0.3) renderScale = 0.3;
+
+  const viewport = page.getViewport({ scale: renderScale });
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  canvas.style.width = viewport.width + 'px';
+  canvas.style.height = viewport.height + 'px';
+  canvasPixelW = viewport.width;
+  canvasPixelH = viewport.height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  pageInfoEl.textContent = `${idx + 1} / ${totalPages}`;
+
+  // Default crop: detect best half. If page is landscape with wider-than-tall aspect,
+  // default to right half. Otherwise top half.
+  if (pdfPageWidth > pdfPageHeight) {
+    setPresetRightHalf();
+  } else {
+    setPresetTopHalf();
+  }
+}
+
+// --- Crop presets ---
+function set46InHalf(halfX, halfY, halfW, halfH) {
+  const aspect = 4 / 6; // portrait w/h
+  let h = halfH;
+  let w = h * aspect;
+  if (w > halfW) { w = halfW; h = w / aspect; }
+  const x = halfX + (halfW - w) / 2;
+  const y = halfY + (halfH - h) / 2;
+  setCrop(x, y, w, h);
+}
+function setPresetRightHalf() { set46InHalf(canvasPixelW / 2, 0, canvasPixelW / 2, canvasPixelH); }
+function setPresetLeftHalf()  { set46InHalf(0, 0, canvasPixelW / 2, canvasPixelH); }
+function setPresetTopHalf()   { set46InHalf(0, 0, canvasPixelW, canvasPixelH / 2); }
+function setPresetBottomHalf(){ set46InHalf(0, canvasPixelH / 2, canvasPixelW, canvasPixelH / 2); }
+function setPresetFullPage()  { setCrop(0, 0, canvasPixelW, canvasPixelH); }
+
+document.getElementById('btnRightHalf').onclick = setPresetRightHalf;
+document.getElementById('btnLeftHalf').onclick = setPresetLeftHalf;
+document.getElementById('btnTopHalf').onclick = setPresetTopHalf;
+document.getElementById('btnBottomHalf').onclick = setPresetBottomHalf;
+document.getElementById('btnFullPage').onclick = setPresetFullPage;
+document.getElementById('btnReset').onclick = () => {
+  dropzone.style.display = 'block';
+  workspace.classList.remove('active');
+  fileInput.value = '';
+  currentFile = null;
+  currentArrayBuffer = null;
+  pdfDoc = null;
+};
+document.getElementById('btnPrev').onclick = async () => {
+  if (currentPageIdx > 0) { currentPageIdx--; await renderPage(currentPageIdx); }
+};
+document.getElementById('btnNext').onclick = async () => {
+  if (currentPageIdx < totalPages - 1) { currentPageIdx++; await renderPage(currentPageIdx); }
+};
+
+function setCrop(x, y, w, h) {
+  x = Math.max(0, Math.min(canvasPixelW - 20, x));
+  y = Math.max(0, Math.min(canvasPixelH - 20, y));
+  w = Math.max(20, Math.min(canvasPixelW - x, w));
+  h = Math.max(20, Math.min(canvasPixelH - y, h));
+  crop = { x, y, w, h };
+  overlay.style.left = x + 'px';
+  overlay.style.top = y + 'px';
+  overlay.style.width = w + 'px';
+  overlay.style.height = h + 'px';
+  updateInfo();
+}
+
+function updateInfo() {
+  const pdfW = crop.w / renderScale;
+  const pdfH = crop.h / renderScale;
+  const inW = (pdfW / 72).toFixed(2);
+  const inH = (pdfH / 72).toFixed(2);
+  infoEl.textContent = `Crop: ${inW}" × ${inH}"`;
+}
+
+// --- Drag / resize ---
+let drag = null;
+overlay.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('crop-handle')) {
+    drag = { mode: 'resize', handle: e.target.dataset.handle, sx: e.clientX, sy: e.clientY, sc: { ...crop } };
+  } else {
+    drag = { mode: 'move', sx: e.clientX, sy: e.clientY, sc: { ...crop } };
+  }
+  e.preventDefault();
+  e.stopPropagation();
+});
+document.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx;
+  const dy = e.clientY - drag.sy;
+  if (drag.mode === 'move') {
+    setCrop(drag.sc.x + dx, drag.sc.y + dy, drag.sc.w, drag.sc.h);
+    return;
+  }
+  // resize
+  let { x, y, w, h } = drag.sc;
+  const hdl = drag.handle;
+  if (hdl.includes('e')) w = drag.sc.w + dx;
+  if (hdl.includes('s')) h = drag.sc.h + dy;
+  if (hdl.includes('w')) { x = drag.sc.x + dx; w = drag.sc.w - dx; }
+  if (hdl.includes('n')) { y = drag.sc.y + dy; h = drag.sc.h - dy; }
+  if (lockAspect.checked) {
+    const aspect = 4 / 6;
+    // Choose w as leader, compute h from aspect, then adjust y if north handle
+    h = w / aspect;
+    if (hdl.includes('n')) y = drag.sc.y + drag.sc.h - h;
+  }
+  setCrop(x, y, w, h);
+});
+document.addEventListener('mouseup', () => { drag = null; });
+
+// --- Download cropped PDF ---
+document.getElementById('btnDownload').onclick = async () => {
+  if (!currentArrayBuffer) return;
+
+  // Canvas (top-left origin) → PDF (bottom-left origin)
+  const pdfX = crop.x / renderScale;
+  const pdfW = crop.w / renderScale;
+  const pdfH = crop.h / renderScale;
+  const pdfY = pdfPageHeight - (crop.y / renderScale) - pdfH;
+
+  const srcDoc = await PDFDocument.load(currentArrayBuffer.slice(0));
+  const dstDoc = await PDFDocument.create();
+  const srcPage = srcDoc.getPages()[currentPageIdx];
+  const [embedded] = await dstDoc.embedPages([srcPage]);
+
+  // Output 4×6 portrait (288 × 432 pts)
+  const outW = 288, outH = 432;
+  // Scale to fit (uniform — user should use 4:6 lock for best results)
+  const scale = Math.min(outW / pdfW, outH / pdfH);
+  const drawW = pdfW * scale;
+  const drawH = pdfH * scale;
+  // Center in output
+  const offsetX = (outW - drawW) / 2;
+  const offsetY = (outH - drawH) / 2;
+
+  const page = dstDoc.addPage([outW, outH]);
+  page.drawPage(embedded, {
+    x: offsetX - pdfX * scale,
+    y: offsetY - pdfY * scale,
+    xScale: scale,
+    yScale: scale,
+  });
+
+  const bytes = await dstDoc.save();
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const base = currentFile.name.replace(/\.pdf$/i, '');
+  a.download = `${base}_4x6.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// Re-render / re-default on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  if (!pdfDoc) return;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => renderPage(currentPageIdx), 200);
+});
+</script>
+</body>
+</html>
