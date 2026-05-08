@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>4×6 Label Cropper</title>
+<title>Shipping Label Cropper 4×6</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -21,7 +21,7 @@
   .dropzone {
     border: 2px dashed #c7c7cc;
     border-radius: 14px;
-    padding: 80px 40px;
+    padding: 70px 40px;
     text-align: center;
     background: white;
     cursor: pointer;
@@ -31,16 +31,9 @@
     border-color: #007aff;
     background: #f0f7ff;
   }
-  .dropzone .primary {
-    font-size: 18px;
-    margin: 0 0 8px;
-    color: #1d1d1f;
-  }
-  .dropzone .secondary {
-    margin: 0;
-    color: #6e6e73;
-    font-size: 14px;
-  }
+  .dropzone .primary { font-size: 18px; margin: 0 0 8px; color: #1d1d1f; }
+  .dropzone .secondary { margin: 0; color: #6e6e73; font-size: 14px; }
+  .dropzone .features { margin: 18px 0 0; color: #8e8e93; font-size: 13px; }
 
   .workspace { display: none; }
   .workspace.active { display: block; }
@@ -67,11 +60,12 @@
     font-weight: 500;
     transition: background 0.1s;
   }
-  button:hover { background: #d1d1d6; }
-  button:active { background: #c7c7cc; }
+  button:hover:not(:disabled) { background: #d1d1d6; }
   button.primary { background: #007aff; color: white; }
-  button.primary:hover { background: #0063cc; }
-  button.primary:active { background: #004a99; }
+  button.primary:hover:not(:disabled) { background: #0063cc; }
+  button.success { background: #34c759; color: white; }
+  button.success:hover:not(:disabled) { background: #2da94c; }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
 
   .toggle {
     display: inline-flex;
@@ -80,17 +74,13 @@
     font-size: 14px;
     cursor: pointer;
     user-select: none;
-    color: #1d1d1f;
   }
-  .toggle input { margin: 0; }
-
   .divider {
     width: 1px;
     height: 22px;
     background: #d1d1d6;
     margin: 0 2px;
   }
-
   .info {
     color: #6e6e73;
     font-size: 13px;
@@ -98,25 +88,24 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Single preview */
   .canvas-wrap {
     background: white;
     border-radius: 10px;
     padding: 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     overflow: auto;
-    max-height: calc(100vh - 180px);
+    max-height: calc(100vh - 220px);
+    text-align: center;
   }
   .canvas-container {
     position: relative;
     display: inline-block;
-    margin: 0 auto;
   }
-  .canvas-wrap { text-align: center; }
   canvas {
     display: block;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
-
   .crop-overlay {
     position: absolute;
     border: 2px solid #007aff;
@@ -138,31 +127,127 @@
   .crop-handle.sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
   .crop-handle.se { bottom: -8px; right: -8px; cursor: nwse-resize; }
 
+  /* Batch grid */
+  .batch-grid {
+    background: white;
+    border-radius: 10px;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .batch-card {
+    border: 1px solid #e5e5ea;
+    border-radius: 10px;
+    padding: 8px;
+    cursor: pointer;
+    background: #fafafc;
+    transition: all 0.1s;
+    position: relative;
+  }
+  .batch-card:hover {
+    border-color: #007aff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .batch-card .thumb {
+    aspect-ratio: 4 / 5.5;
+    background: #f0f0f3;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .batch-card .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .batch-card .thumb .placeholder { color: #aaa; font-size: 11px; }
+  .batch-card .thumb .crop-marker {
+    position: absolute;
+    border: 1.5px solid #007aff;
+    background: rgba(0, 122, 255, 0.12);
+    pointer-events: none;
+    border-radius: 1px;
+  }
+  .batch-card .name {
+    font-size: 12px;
+    font-weight: 500;
+    word-break: break-all;
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+  .batch-card .status {
+    font-size: 11px;
+    color: #6e6e73;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .batch-card .status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d1d1d6;
+    flex-shrink: 0;
+  }
+  .batch-card[data-status="ready"] .dot { background: #34c759; }
+  .batch-card[data-status="manual"] .dot { background: #007aff; }
+  .batch-card[data-status="detecting"] .dot { background: #ff9500; animation: pulse 1s infinite; }
+  .batch-card[data-status="failed"] .dot { background: #ff3b30; }
+  .batch-card[data-status="pending"] .dot { background: #d1d1d6; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #d1d1d6;
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6e6e73;
+  }
+  .remove-btn:hover { background: #ffe5e5; border-color: #ff3b30; color: #ff3b30; }
+
   .hint {
     color: #6e6e73;
     font-size: 12px;
     text-align: center;
     margin-top: 10px;
   }
-
-  .page-nav { display: flex; gap: 6px; align-items: center; }
-  .page-nav button { padding: 6px 10px; }
-  .page-nav .pageInfo { font-size: 13px; color: #6e6e73; min-width: 60px; text-align: center; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>4×6 Label Cropper</h1>
-  <p class="subtitle">Drop a shipping-label PDF, drag the selection over just the label, download a clean 4×6 PDF ready for your label printer.</p>
+  <h1>Shipping Label Cropper 4×6</h1>
+  <p class="subtitle">Drop one or many shipping-label PDFs. Auto-detects the label region from the tracking barcode. Manual fine-tune always available. Batch mode downloads everything as a ZIP.</p>
 
   <div class="dropzone" id="dropzone">
-    <p class="primary">Drop a shipping-label PDF here</p>
-    <p class="secondary">or click to choose a file</p>
-    <input type="file" id="fileInput" accept="application/pdf" style="display:none">
+    <p class="primary">Drop shipping-label PDFs here</p>
+    <p class="secondary">One or many — or click to choose files</p>
+    <p class="features">✨ Auto-detect from barcode &nbsp;·&nbsp; 📦 Batch → ZIP &nbsp;·&nbsp; 🔒 Files never leave your browser</p>
+    <input type="file" id="fileInput" accept="application/pdf" multiple style="display:none">
   </div>
 
-  <div class="workspace" id="workspace">
+  <!-- Single preview mode -->
+  <div class="workspace" id="singleWS">
     <div class="toolbar">
+      <button id="btnBack" style="display:none">← Back to list</button>
+      <button id="btnAutoDetect" class="primary">✨ Auto-detect</button>
+      <div class="divider"></div>
       <button id="btnRightHalf">Right half</button>
       <button id="btnLeftHalf">Left half</button>
       <button id="btnTopHalf">Top half</button>
@@ -171,14 +256,8 @@
       <div class="divider"></div>
       <label class="toggle"><input type="checkbox" id="lockAspect" checked> Lock 4:6</label>
       <div class="divider"></div>
-      <div class="page-nav" id="pageNav" style="display:none">
-        <button id="btnPrev">◀</button>
-        <span class="pageInfo" id="pageInfo">1 / 1</span>
-        <button id="btnNext">▶</button>
-      </div>
-      <div class="divider" id="divPageNav" style="display:none"></div>
-      <button id="btnReset">New file</button>
-      <button class="primary" id="btnDownload">Download 4×6 PDF</button>
+      <button id="btnReset">New file(s)</button>
+      <button class="success" id="btnDownload">Download 4×6 PDF</button>
       <span class="info" id="info"></span>
     </div>
     <div class="canvas-wrap">
@@ -191,278 +270,625 @@
           <div class="crop-handle se" data-handle="se"></div>
         </div>
       </div>
-      <p class="hint">Drag the blue box to move · drag a corner to resize · hold 4:6 lock for label printers</p>
+      <p class="hint">Drag the box to move · drag corners to resize · click <strong>✨ Auto-detect</strong> to snap around the tracking barcode</p>
     </div>
+  </div>
+
+  <!-- Batch grid mode -->
+  <div class="workspace" id="batchWS">
+    <div class="toolbar">
+      <span class="info" id="batchInfo" style="margin-left:0"></span>
+      <div class="divider"></div>
+      <button id="btnAutoDetectAll">✨ Re-detect all</button>
+      <button id="btnAddMore">+ Add more</button>
+      <button id="btnClearAll">Clear all</button>
+      <div style="margin-left:auto;">
+        <button class="success" id="btnDownloadZip">Download all (ZIP)</button>
+      </div>
+    </div>
+    <div class="batch-grid" id="batchGrid"></div>
+    <p class="hint">Click any card to fine-tune that label · green dot = auto-detected · red dot = no barcode found, fell back to default crop</p>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const { PDFDocument } = PDFLib;
 
-// --- State ---
-let currentFile = null;
-let currentArrayBuffer = null;
-let pdfDoc = null;           // pdf.js doc
-let currentPageIdx = 0;      // 0-based
-let totalPages = 1;
-let renderScale = 1.0;
-let pdfPageWidth = 0;        // PDF points
-let pdfPageHeight = 0;
-let canvasPixelW = 0;
-let canvasPixelH = 0;
-let crop = { x: 0, y: 0, w: 0, h: 0 };  // canvas pixels
+// ============ State ============
+const state = {
+  items: [],          // [{ id, fileName, buffer, pdfDoc, pageIdx, totalPages, pdfW, pdfH, status, crop, thumbnail }]
+  activeId: null,
+  mode: 'empty',      // 'empty' | 'single' | 'batch'
+};
+// crop is in PDF points: { x, y, w, h } with bottom-left origin
 
-// --- Elements ---
+const view = { renderScale: 1, cWidth: 0, cHeight: 0 };
+let cropPx = { x: 0, y: 0, w: 0, h: 0 };
+
+// ============ DOM ============
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
-const workspace = document.getElementById('workspace');
+const singleWS = document.getElementById('singleWS');
+const batchWS = document.getElementById('batchWS');
 const canvas = document.getElementById('canvas');
 const overlay = document.getElementById('cropOverlay');
 const infoEl = document.getElementById('info');
 const lockAspect = document.getElementById('lockAspect');
-const pageNav = document.getElementById('pageNav');
-const divPageNav = document.getElementById('divPageNav');
-const pageInfoEl = document.getElementById('pageInfo');
+const batchGrid = document.getElementById('batchGrid');
+const batchInfo = document.getElementById('batchInfo');
+const btnBack = document.getElementById('btnBack');
+const btnDownload = document.getElementById('btnDownload');
+const btnDownloadZip = document.getElementById('btnDownloadZip');
+const btnAutoDetect = document.getElementById('btnAutoDetect');
 
-// --- File handling ---
-['dragover', 'dragenter'].forEach(ev => {
-  dropzone.addEventListener(ev, e => {
-    e.preventDefault();
-    dropzone.classList.add('dragover');
-  });
-});
-['dragleave', 'drop'].forEach(ev => {
-  dropzone.addEventListener(ev, e => {
-    e.preventDefault();
-    dropzone.classList.remove('dragover');
-  });
-});
-dropzone.addEventListener('drop', e => {
-  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-});
+// ============ File ingestion ============
+['dragover','dragenter'].forEach(ev =>
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('dragover'); }));
+['dragleave','drop'].forEach(ev =>
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('dragover'); }));
+dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
 dropzone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', e => {
-  if (e.target.files.length) handleFile(e.target.files[0]);
-});
+fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
 
-// Accept drops anywhere in the window
-window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
   e.preventDefault();
-  const f = e.dataTransfer.files[0];
-  if (f && f.type === 'application/pdf') handleFile(f);
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
 
-async function handleFile(file) {
-  if (file.type !== 'application/pdf') {
-    alert('Please drop a PDF file.');
+async function handleFiles(fileList) {
+  const pdfs = Array.from(fileList).filter(f => f.type === 'application/pdf');
+  if (!pdfs.length) {
+    if (fileList.length) alert('Only PDFs are supported.');
     return;
   }
-  currentFile = file;
-  currentArrayBuffer = await file.arrayBuffer();
-  pdfDoc = await pdfjsLib.getDocument({ data: currentArrayBuffer.slice(0) }).promise;
-  totalPages = pdfDoc.numPages;
-  currentPageIdx = 0;
-
-  if (totalPages > 1) {
-    pageNav.style.display = 'flex';
-    divPageNav.style.display = 'block';
-  } else {
-    pageNav.style.display = 'none';
-    divPageNav.style.display = 'none';
+  for (const file of pdfs) {
+    try { await ingestFile(file); }
+    catch (err) { console.error(err); alert(`Failed to load ${file.name}: ${err.message}`); }
   }
 
-  await renderPage(currentPageIdx);
+  if (state.items.length === 1) {
+    state.mode = 'single';
+    state.activeId = state.items[0].id;
+    showSingle();
+    btnBack.style.display = 'none';
+    await renderActive();
+    await autoDetectActive();
+  } else if (state.items.length > 1) {
+    state.mode = 'batch';
+    state.activeId = null;
+    showBatch();
+    await renderBatchGrid();
+    autoDetectAll();   // run async, cards update live
+  }
+}
 
+async function ingestFile(file) {
+  const buffer = await file.arrayBuffer();
+  const pdfDoc = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+  for (let i = 0; i < pdfDoc.numPages; i++) {
+    const page = await pdfDoc.getPage(i + 1);
+    const vp = page.getViewport({ scale: 1 });
+    state.items.push({
+      id: 'item_' + Math.random().toString(36).slice(2, 10),
+      fileName: file.name,
+      buffer,
+      pdfDoc,
+      pageIdx: i,
+      totalPages: pdfDoc.numPages,
+      pdfW: vp.width,
+      pdfH: vp.height,
+      status: 'pending',
+      crop: null,
+      thumbnail: null,
+    });
+  }
+}
+
+function showSingle() {
   dropzone.style.display = 'none';
-  workspace.classList.add('active');
+  singleWS.classList.add('active');
+  batchWS.classList.remove('active');
 }
-
-async function renderPage(idx) {
-  const page = await pdfDoc.getPage(idx + 1);
-  const unscaled = page.getViewport({ scale: 1 });
-  pdfPageWidth = unscaled.width;
-  pdfPageHeight = unscaled.height;
-
-  // Fit canvas to available width
-  const containerW = Math.min(1100, window.innerWidth - 120);
-  const containerH = window.innerHeight - 260;
-  const scaleW = containerW / pdfPageWidth;
-  const scaleH = containerH / pdfPageHeight;
-  renderScale = Math.min(scaleW, scaleH, 2.5);
-  if (renderScale < 0.3) renderScale = 0.3;
-
-  const viewport = page.getViewport({ scale: renderScale });
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  canvas.style.width = viewport.width + 'px';
-  canvas.style.height = viewport.height + 'px';
-  canvasPixelW = viewport.width;
-  canvasPixelH = viewport.height;
-
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  await page.render({ canvasContext: ctx, viewport }).promise;
-
-  pageInfoEl.textContent = `${idx + 1} / ${totalPages}`;
-
-  // Default crop: detect best half. If page is landscape with wider-than-tall aspect,
-  // default to right half. Otherwise top half.
-  if (pdfPageWidth > pdfPageHeight) {
-    setPresetRightHalf();
-  } else {
-    setPresetTopHalf();
-  }
+function showBatch() {
+  dropzone.style.display = 'none';
+  singleWS.classList.remove('active');
+  batchWS.classList.add('active');
 }
-
-// --- Crop presets ---
-function set46InHalf(halfX, halfY, halfW, halfH) {
-  const aspect = 4 / 6; // portrait w/h
-  let h = halfH;
-  let w = h * aspect;
-  if (w > halfW) { w = halfW; h = w / aspect; }
-  const x = halfX + (halfW - w) / 2;
-  const y = halfY + (halfH - h) / 2;
-  setCrop(x, y, w, h);
-}
-function setPresetRightHalf() { set46InHalf(canvasPixelW / 2, 0, canvasPixelW / 2, canvasPixelH); }
-function setPresetLeftHalf()  { set46InHalf(0, 0, canvasPixelW / 2, canvasPixelH); }
-function setPresetTopHalf()   { set46InHalf(0, 0, canvasPixelW, canvasPixelH / 2); }
-function setPresetBottomHalf(){ set46InHalf(0, canvasPixelH / 2, canvasPixelW, canvasPixelH / 2); }
-function setPresetFullPage()  { setCrop(0, 0, canvasPixelW, canvasPixelH); }
-
-document.getElementById('btnRightHalf').onclick = setPresetRightHalf;
-document.getElementById('btnLeftHalf').onclick = setPresetLeftHalf;
-document.getElementById('btnTopHalf').onclick = setPresetTopHalf;
-document.getElementById('btnBottomHalf').onclick = setPresetBottomHalf;
-document.getElementById('btnFullPage').onclick = setPresetFullPage;
-document.getElementById('btnReset').onclick = () => {
+function showEmpty() {
+  state.items = []; state.activeId = null; state.mode = 'empty';
   dropzone.style.display = 'block';
-  workspace.classList.remove('active');
+  singleWS.classList.remove('active');
+  batchWS.classList.remove('active');
   fileInput.value = '';
-  currentFile = null;
-  currentArrayBuffer = null;
-  pdfDoc = null;
-};
-document.getElementById('btnPrev').onclick = async () => {
-  if (currentPageIdx > 0) { currentPageIdx--; await renderPage(currentPageIdx); }
-};
-document.getElementById('btnNext').onclick = async () => {
-  if (currentPageIdx < totalPages - 1) { currentPageIdx++; await renderPage(currentPageIdx); }
-};
+}
 
-function setCrop(x, y, w, h) {
-  x = Math.max(0, Math.min(canvasPixelW - 20, x));
-  y = Math.max(0, Math.min(canvasPixelH - 20, y));
-  w = Math.max(20, Math.min(canvasPixelW - x, w));
-  h = Math.max(20, Math.min(canvasPixelH - y, h));
-  crop = { x, y, w, h };
+document.getElementById('btnReset').onclick = showEmpty;
+document.getElementById('btnClearAll').onclick = showEmpty;
+document.getElementById('btnAddMore').onclick = () => fileInput.click();
+btnBack.onclick = async () => { state.activeId = null; showBatch(); await renderBatchGrid(); };
+
+// ============ Single-preview rendering ============
+function activeItem() { return state.items.find(it => it.id === state.activeId); }
+
+async function renderActive() {
+  const item = activeItem();
+  if (!item) return;
+  const page = await item.pdfDoc.getPage(item.pageIdx + 1);
+  const containerW = Math.min(1100, window.innerWidth - 120);
+  const containerH = window.innerHeight - 240;
+  view.renderScale = Math.max(0.4, Math.min(2.5, Math.min(containerW / item.pdfW, containerH / item.pdfH)));
+  const vp = page.getViewport({ scale: view.renderScale });
+  canvas.width = vp.width; canvas.height = vp.height;
+  canvas.style.width = vp.width + 'px';
+  canvas.style.height = vp.height + 'px';
+  view.cWidth = vp.width; view.cHeight = vp.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, vp.width, vp.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  if (item.crop) setCropFromPdf(item.crop);
+  else setPresetRightHalf();
+}
+
+function setCropPx(x, y, w, h) {
+  x = Math.max(0, Math.min(view.cWidth - 20, x));
+  y = Math.max(0, Math.min(view.cHeight - 20, y));
+  w = Math.max(20, Math.min(view.cWidth - x, w));
+  h = Math.max(20, Math.min(view.cHeight - y, h));
+  cropPx = { x, y, w, h };
   overlay.style.left = x + 'px';
   overlay.style.top = y + 'px';
   overlay.style.width = w + 'px';
   overlay.style.height = h + 'px';
   updateInfo();
+  const item = activeItem();
+  if (item) item.crop = pxToPdfCrop(cropPx, item);
+}
+function setCropFromPdf(p) {
+  const x = p.x * view.renderScale;
+  const w = p.w * view.renderScale;
+  const h = p.h * view.renderScale;
+  const y = view.cHeight - (p.y + p.h) * view.renderScale;
+  setCropPx(x, y, w, h);
+}
+function pxToPdfCrop(c, item) {
+  const x = c.x / view.renderScale;
+  const w = c.w / view.renderScale;
+  const h = c.h / view.renderScale;
+  const y = item.pdfH - (c.y / view.renderScale) - h;
+  return { x, y, w, h };
 }
 
 function updateInfo() {
-  const pdfW = crop.w / renderScale;
-  const pdfH = crop.h / renderScale;
-  const inW = (pdfW / 72).toFixed(2);
-  const inH = (pdfH / 72).toFixed(2);
-  infoEl.textContent = `Crop: ${inW}" × ${inH}"`;
+  const pdfW = cropPx.w / view.renderScale;
+  const pdfH = cropPx.h / view.renderScale;
+  infoEl.textContent = `Crop: ${(pdfW/72).toFixed(2)}" × ${(pdfH/72).toFixed(2)}"`;
 }
 
-// --- Drag / resize ---
+// Presets
+function set46InHalf(hx, hy, hw, hh) {
+  const a = 4/6;
+  let h = hh, w = h * a;
+  if (w > hw) { w = hw; h = w / a; }
+  setCropPx(hx + (hw - w)/2, hy + (hh - h)/2, w, h);
+}
+function setPresetRightHalf() { set46InHalf(view.cWidth/2, 0, view.cWidth/2, view.cHeight); markActive('manual'); }
+function setPresetLeftHalf()  { set46InHalf(0, 0, view.cWidth/2, view.cHeight); markActive('manual'); }
+function setPresetTopHalf()   { set46InHalf(0, 0, view.cWidth, view.cHeight/2); markActive('manual'); }
+function setPresetBottomHalf(){ set46InHalf(0, view.cHeight/2, view.cWidth, view.cHeight/2); markActive('manual'); }
+function setPresetFullPage()  { setCropPx(0, 0, view.cWidth, view.cHeight); markActive('manual'); }
+function markActive(s) { const it = activeItem(); if (it) it.status = s; }
+
+document.getElementById('btnRightHalf').onclick  = setPresetRightHalf;
+document.getElementById('btnLeftHalf').onclick   = setPresetLeftHalf;
+document.getElementById('btnTopHalf').onclick    = setPresetTopHalf;
+document.getElementById('btnBottomHalf').onclick = setPresetBottomHalf;
+document.getElementById('btnFullPage').onclick   = setPresetFullPage;
+
+// Drag / resize
 let drag = null;
 overlay.addEventListener('mousedown', e => {
   if (e.target.classList.contains('crop-handle')) {
-    drag = { mode: 'resize', handle: e.target.dataset.handle, sx: e.clientX, sy: e.clientY, sc: { ...crop } };
+    drag = { mode: 'resize', handle: e.target.dataset.handle, sx: e.clientX, sy: e.clientY, sc: { ...cropPx } };
   } else {
-    drag = { mode: 'move', sx: e.clientX, sy: e.clientY, sc: { ...crop } };
+    drag = { mode: 'move', sx: e.clientX, sy: e.clientY, sc: { ...cropPx } };
   }
   e.preventDefault();
-  e.stopPropagation();
 });
 document.addEventListener('mousemove', e => {
   if (!drag) return;
   const dx = e.clientX - drag.sx;
   const dy = e.clientY - drag.sy;
   if (drag.mode === 'move') {
-    setCrop(drag.sc.x + dx, drag.sc.y + dy, drag.sc.w, drag.sc.h);
+    setCropPx(drag.sc.x + dx, drag.sc.y + dy, drag.sc.w, drag.sc.h);
     return;
   }
-  // resize
   let { x, y, w, h } = drag.sc;
-  const hdl = drag.handle;
-  if (hdl.includes('e')) w = drag.sc.w + dx;
-  if (hdl.includes('s')) h = drag.sc.h + dy;
-  if (hdl.includes('w')) { x = drag.sc.x + dx; w = drag.sc.w - dx; }
-  if (hdl.includes('n')) { y = drag.sc.y + dy; h = drag.sc.h - dy; }
+  const hd = drag.handle;
+  if (hd.includes('e')) w = drag.sc.w + dx;
+  if (hd.includes('s')) h = drag.sc.h + dy;
+  if (hd.includes('w')) { x = drag.sc.x + dx; w = drag.sc.w - dx; }
+  if (hd.includes('n')) { y = drag.sc.y + dy; h = drag.sc.h - dy; }
   if (lockAspect.checked) {
-    const aspect = 4 / 6;
-    // Choose w as leader, compute h from aspect, then adjust y if north handle
-    h = w / aspect;
-    if (hdl.includes('n')) y = drag.sc.y + drag.sc.h - h;
+    h = w / (4/6);
+    if (hd.includes('n')) y = drag.sc.y + drag.sc.h - h;
   }
-  setCrop(x, y, w, h);
+  setCropPx(x, y, w, h);
+  markActive('manual');
 });
 document.addEventListener('mouseup', () => { drag = null; });
 
-// --- Download cropped PDF ---
-document.getElementById('btnDownload').onclick = async () => {
-  if (!currentArrayBuffer) return;
+// ============ Auto-detect (ZXing barcode) ============
+const ZX = window.ZXing;
 
-  // Canvas (top-left origin) → PDF (bottom-left origin)
-  const pdfX = crop.x / renderScale;
-  const pdfW = crop.w / renderScale;
-  const pdfH = crop.h / renderScale;
-  const pdfY = pdfPageHeight - (crop.y / renderScale) - pdfH;
+function makeReader() {
+  const reader = new ZX.MultiFormatReader();
+  const hints = new Map();
+  hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+  hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
+    ZX.BarcodeFormat.CODE_128,
+    ZX.BarcodeFormat.CODE_39,
+    ZX.BarcodeFormat.ITF,
+    ZX.BarcodeFormat.EAN_13,
+    ZX.BarcodeFormat.UPC_A,
+  ]);
+  reader.setHints(hints);
+  return reader;
+}
 
-  const srcDoc = await PDFDocument.load(currentArrayBuffer.slice(0));
+function tryDecode(reader, sourceCanvas) {
+  try {
+    const lum = new ZX.HTMLCanvasElementLuminanceSource(sourceCanvas);
+    const bin = new ZX.HybridBinarizer(lum);
+    const bmp = new ZX.BinaryBitmap(bin);
+    return reader.decode(bmp);
+  } catch (_) {
+    return null;
+  } finally {
+    reader.reset();
+  }
+}
+
+async function detectBarcodeOnPage(item) {
+  const detectScale = 2.5;
+  const page = await item.pdfDoc.getPage(item.pageIdx + 1);
+  const vp = page.getViewport({ scale: detectScale });
+  const off = document.createElement('canvas');
+  off.width = vp.width; off.height = vp.height;
+  await page.render({ canvasContext: off.getContext('2d'), viewport: vp }).promise;
+
+  const reader = makeReader();
+  const W = off.width, H = off.height;
+  const regions = [
+    { x: 0, y: 0, w: W, h: H },                    // whole page
+    { x: W/2, y: 0, w: W/2, h: H },                // right half (Canada Post style)
+    { x: 0, y: 0, w: W/2, h: H },                  // left half
+    { x: 0, y: 0, w: W, h: H/2 },                  // top half
+    { x: 0, y: H/2, w: W, h: H/2 },                // bottom half
+    { x: W/4, y: H/4, w: W/2, h: H/2 },            // center
+  ];
+  const found = [];
+  for (const r of regions) {
+    const sub = document.createElement('canvas');
+    sub.width = Math.round(r.w); sub.height = Math.round(r.h);
+    sub.getContext('2d').drawImage(off, r.x, r.y, r.w, r.h, 0, 0, sub.width, sub.height);
+    const result = tryDecode(reader, sub);
+    if (!result) continue;
+    const pts = result.getResultPoints();
+    if (!pts || !pts.length) continue;
+    const xs = pts.map(p => p.getX() + r.x);
+    const ys = pts.map(p => p.getY() + r.y);
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    const yMin = Math.min(...ys), yMax = Math.max(...ys);
+    const width = xMax - xMin;
+    if (width < 30) continue;
+    found.push({
+      cx: (xMin + xMax) / 2 / detectScale,
+      cy: (yMin + yMax) / 2 / detectScale,
+      bw: width / detectScale,
+      text: result.getText(),
+    });
+  }
+  if (!found.length) return null;
+  // Pick the widest barcode (the tracking-number 1D code is widest)
+  found.sort((a, b) => b.bw - a.bw);
+  return found[0];
+}
+
+function computeCropFromBarcode(det, item) {
+  const { cx, cy, bw } = det;
+  const { pdfW, pdfH } = item;
+  // Heuristic: tracking barcode is roughly 78% of label width, sits ~62% from top
+  let labelW = bw / 0.78;
+  let labelH = labelW * 1.5;
+  if (labelW > pdfW) { labelW = pdfW; labelH = labelW * 1.5; }
+  if (labelH > pdfH) { labelH = pdfH; labelW = labelH / 1.5; }
+
+  let x = cx - labelW / 2;
+  const yFromTop = cy - labelH * 0.62;
+  let yPdf = pdfH - yFromTop - labelH;
+
+  x = Math.max(0, Math.min(pdfW - labelW, x));
+  yPdf = Math.max(0, Math.min(pdfH - labelH, yPdf));
+  return { x, y: yPdf, w: labelW, h: labelH };
+}
+
+function defaultFallbackCrop(item) {
+  // Right half if landscape, top half if portrait. 4:6 aspect.
+  const a = 4 / 6;
+  const portrait = item.pdfH > item.pdfW;
+  let hx, hy, hw, hh;
+  if (portrait) { hx = 0; hy = item.pdfH / 2; hw = item.pdfW; hh = item.pdfH / 2; }
+  else          { hx = item.pdfW / 2; hy = 0; hw = item.pdfW / 2; hh = item.pdfH; }
+  let h = hh, w = h * a;
+  if (w > hw) { w = hw; h = w / a; }
+  const xCss = hx + (hw - w) / 2;
+  const yCss = hy + (hh - h) / 2;
+  return { x: xCss, y: item.pdfH - yCss - h, w, h };
+}
+
+async function autoDetectActive() {
+  const item = activeItem();
+  if (!item) return;
+  item.status = 'detecting';
+  btnAutoDetect.disabled = true;
+  const orig = btnAutoDetect.textContent;
+  btnAutoDetect.textContent = '⏳ Detecting…';
+  try {
+    const det = await detectBarcodeOnPage(item);
+    if (det) {
+      item.crop = computeCropFromBarcode(det, item);
+      item.status = 'ready';
+    } else {
+      item.crop = defaultFallbackCrop(item);
+      item.status = 'failed';
+    }
+    setCropFromPdf(item.crop);
+  } catch (e) {
+    console.error(e);
+    item.crop = defaultFallbackCrop(item);
+    item.status = 'failed';
+    setCropFromPdf(item.crop);
+  } finally {
+    btnAutoDetect.disabled = false;
+    btnAutoDetect.textContent = orig;
+  }
+}
+btnAutoDetect.onclick = autoDetectActive;
+
+// ============ Batch grid ============
+async function renderBatchGrid() {
+  batchInfo.textContent = batchSummary();
+  batchGrid.innerHTML = '';
+  for (const item of state.items) {
+    const card = document.createElement('div');
+    card.className = 'batch-card';
+    card.dataset.id = item.id;
+    card.dataset.status = item.status;
+    card.innerHTML = `
+      <div class="thumb"><span class="placeholder">loading…</span></div>
+      <div class="name">${escapeHtml(item.fileName)}${item.totalPages > 1 ? ` <span style="color:#999">· p${item.pageIdx+1}</span>` : ''}</div>
+      <div class="status"><span class="dot"></span><span class="label">${statusText(item)}</span></div>
+      <button class="remove-btn" title="Remove">×</button>
+    `;
+    card.addEventListener('click', e => {
+      if (e.target.classList.contains('remove-btn')) {
+        e.stopPropagation();
+        removeItem(item.id);
+        return;
+      }
+      openSingle(item.id);
+    });
+    batchGrid.appendChild(card);
+    renderThumbnail(item, card.querySelector('.thumb'));  // async
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+function statusText(item) {
+  if (item.status === 'detecting') return 'Detecting…';
+  if (item.status === 'ready')     return 'Auto-detected ✓';
+  if (item.status === 'manual')    return 'Manual crop';
+  if (item.status === 'failed')    return 'No barcode — default crop';
+  return 'Pending';
+}
+function batchSummary() {
+  const ready = state.items.filter(i => ['ready','manual'].includes(i.status)).length;
+  const detecting = state.items.filter(i => i.status === 'detecting').length;
+  const failed = state.items.filter(i => i.status === 'failed').length;
+  let s = `${state.items.length} page${state.items.length !== 1 ? 's' : ''} · ${ready} ready`;
+  if (detecting) s += ` · ${detecting} detecting`;
+  if (failed) s += ` · ${failed} fallback`;
+  return s;
+}
+function updateCardStatus(item) {
+  const card = batchGrid.querySelector(`[data-id="${item.id}"]`);
+  if (!card) return;
+  card.dataset.status = item.status;
+  card.querySelector('.label').textContent = statusText(item);
+  // Refresh crop marker on thumbnail
+  const thumb = card.querySelector('.thumb');
+  const oldMarker = thumb.querySelector('.crop-marker');
+  if (oldMarker) oldMarker.remove();
+  if (item.crop && item.thumbnail) {
+    const m = document.createElement('div');
+    m.className = 'crop-marker';
+    m.style.left = (item.crop.x / item.pdfW * 100) + '%';
+    m.style.width = (item.crop.w / item.pdfW * 100) + '%';
+    // y in PDF is bottom-up; CSS top is from top
+    m.style.top = ((item.pdfH - item.crop.y - item.crop.h) / item.pdfH * 100) + '%';
+    m.style.height = (item.crop.h / item.pdfH * 100) + '%';
+    thumb.appendChild(m);
+  }
+  batchInfo.textContent = batchSummary();
+}
+
+async function renderThumbnail(item, container) {
+  if (!item.thumbnail) {
+    const page = await item.pdfDoc.getPage(item.pageIdx + 1);
+    const vp = page.getViewport({ scale: 0.4 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    item.thumbnail = c.toDataURL('image/jpeg', 0.6);
+  }
+  container.innerHTML = `<img src="${item.thumbnail}">`;
+  if (item.crop) updateCardStatus(item);
+}
+
+function removeItem(id) {
+  state.items = state.items.filter(i => i.id !== id);
+  if (!state.items.length) { showEmpty(); return; }
+  if (state.items.length === 1) {
+    state.mode = 'single';
+    state.activeId = state.items[0].id;
+    showSingle();
+    btnBack.style.display = 'none';
+    renderActive();
+    return;
+  }
+  renderBatchGrid();
+}
+
+async function openSingle(id) {
+  state.activeId = id;
+  showSingle();
+  btnBack.style.display = state.items.length > 1 ? '' : 'none';
+  await renderActive();
+}
+
+async function autoDetectAll() {
+  // Sequential to avoid hammering the main thread
+  for (const item of state.items) {
+    if (item.status === 'manual') continue;  // respect manual crops
+    item.status = 'detecting';
+    updateCardStatus(item);
+    try {
+      const det = await detectBarcodeOnPage(item);
+      if (det) {
+        item.crop = computeCropFromBarcode(det, item);
+        item.status = 'ready';
+      } else {
+        item.crop = defaultFallbackCrop(item);
+        item.status = 'failed';
+      }
+    } catch (e) {
+      console.error(e);
+      item.crop = defaultFallbackCrop(item);
+      item.status = 'failed';
+    }
+    updateCardStatus(item);
+  }
+}
+document.getElementById('btnAutoDetectAll').onclick = async () => {
+  for (const item of state.items) item.status = 'pending';
+  state.items.forEach(updateCardStatus);
+  await autoDetectAll();
+};
+
+// ============ Cropping → PDF blob ============
+async function cropToBlob(item) {
+  if (!item.crop) item.crop = defaultFallbackCrop(item);
+  const srcDoc = await PDFDocument.load(item.buffer.slice(0));
   const dstDoc = await PDFDocument.create();
-  const srcPage = srcDoc.getPages()[currentPageIdx];
+  const srcPage = srcDoc.getPages()[item.pageIdx];
   const [embedded] = await dstDoc.embedPages([srcPage]);
 
-  // Output 4×6 portrait (288 × 432 pts)
-  const outW = 288, outH = 432;
-  // Scale to fit (uniform — user should use 4:6 lock for best results)
-  const scale = Math.min(outW / pdfW, outH / pdfH);
-  const drawW = pdfW * scale;
-  const drawH = pdfH * scale;
-  // Center in output
-  const offsetX = (outW - drawW) / 2;
-  const offsetY = (outH - drawH) / 2;
+  const outW = 288, outH = 432;  // 4×6 inches in points
+  const { x: cx, y: cy, w: cw, h: ch } = item.crop;
+  const scale = Math.min(outW / cw, outH / ch);
+  const drawW = cw * scale, drawH = ch * scale;
+  const offX = (outW - drawW) / 2, offY = (outH - drawH) / 2;
 
   const page = dstDoc.addPage([outW, outH]);
   page.drawPage(embedded, {
-    x: offsetX - pdfX * scale,
-    y: offsetY - pdfY * scale,
+    x: offX - cx * scale,
+    y: offY - cy * scale,
     xScale: scale,
     yScale: scale,
   });
-
   const bytes = await dstDoc.save();
-  const blob = new Blob([bytes], { type: 'application/pdf' });
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+function outputName(item) {
+  const base = item.fileName.replace(/\.pdf$/i, '');
+  const suffix = item.totalPages > 1 ? `_p${item.pageIdx + 1}` : '';
+  return `${base}${suffix}_4x6.pdf`;
+}
+
+// Single download
+btnDownload.onclick = async () => {
+  const item = activeItem();
+  if (!item) return;
+  btnDownload.disabled = true;
+  const orig = btnDownload.textContent;
+  btnDownload.textContent = 'Generating…';
+  try {
+    const blob = await cropToBlob(item);
+    triggerDownload(blob, outputName(item));
+  } finally {
+    btnDownload.disabled = false;
+    btnDownload.textContent = orig;
+  }
+};
+
+// Batch ZIP download
+btnDownloadZip.onclick = async () => {
+  if (!state.items.length) return;
+  btnDownloadZip.disabled = true;
+  const orig = btnDownloadZip.textContent;
+  try {
+    const zip = new JSZip();
+    const used = new Set();
+    let n = 0;
+    for (const item of state.items) {
+      n++;
+      btnDownloadZip.textContent = `Cropping ${n}/${state.items.length}…`;
+      const blob = await cropToBlob(item);
+      let name = outputName(item);
+      let i = 2;
+      while (used.has(name)) { name = outputName(item).replace(/\.pdf$/, `_${i}.pdf`); i++; }
+      used.add(name);
+      zip.file(name, await blob.arrayBuffer());
+    }
+    btnDownloadZip.textContent = 'Compressing…';
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    triggerDownload(zipBlob, `shipping_labels_4x6_${tsLabel()}.zip`);
+  } finally {
+    btnDownloadZip.disabled = false;
+    btnDownloadZip.textContent = orig;
+  }
+};
+
+function triggerDownload(blob, name) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  const base = currentFile.name.replace(/\.pdf$/i, '');
-  a.download = `${base}_4x6.pdf`;
+  a.href = url; a.download = name;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function tsLabel() {
+  const d = new Date();
+  const z = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}`;
+}
 
-// Re-render / re-default on resize
-let resizeTimer;
+// Resize re-render
 window.addEventListener('resize', () => {
-  if (!pdfDoc) return;
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => renderPage(currentPageIdx), 200);
+  if (state.mode === 'single' && state.activeId) {
+    clearTimeout(window._rt);
+    window._rt = setTimeout(renderActive, 200);
+  }
 });
 </script>
 </body>
