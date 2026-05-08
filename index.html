@@ -327,17 +327,19 @@ const btnDownloadZip = document.getElementById('btnDownloadZip');
 const btnAutoDetect = document.getElementById('btnAutoDetect');
 
 // ============ File ingestion ============
-['dragover','dragenter'].forEach(ev =>
-  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('dragover'); }));
-['dragleave','drop'].forEach(ev =>
-  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('dragover'); }));
-dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+// Visual dragover feedback on the dropzone only (no drop handler on the dropzone —
+// the window-level drop handler below covers everything, including drops on the dropzone).
+dropzone.addEventListener('dragenter', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragover',  e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
 dropzone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
 
+// Single, page-wide drop handler — fires once per drop, anywhere on the page.
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
   e.preventDefault();
+  dropzone.classList.remove('dragover');
   if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
 
@@ -606,7 +608,9 @@ function computeCropFromBarcode(det, item) {
   // Heuristic: tracking barcode is ~54% of label width on Canada Post / USPS labels,
   // and sits ~62% from the top of the label.
   const BARCODE_WIDTH_RATIO = 0.54;
-  const BARCODE_Y_RATIO = 0.62;
+  // Note: ZXing reports y of a single scanline rather than the barcode's vertical
+  // center, so this empirical value is lower than the actual barcode-to-label-top ratio.
+  const BARCODE_Y_RATIO = 0.50;
 
   let labelW = bw / BARCODE_WIDTH_RATIO;
   let labelH = labelW * 1.5;
