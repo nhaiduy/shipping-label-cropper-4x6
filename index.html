@@ -603,14 +603,19 @@ async function detectBarcodeOnPage(item) {
 function computeCropFromBarcode(det, item) {
   const { cx, cy, bw } = det;
   const { pdfW, pdfH } = item;
-  // Heuristic: tracking barcode is roughly 78% of label width, sits ~62% from top
-  let labelW = bw / 0.78;
+  // Heuristic: tracking barcode is ~54% of label width on Canada Post / USPS labels,
+  // and sits ~62% from the top of the label.
+  const BARCODE_WIDTH_RATIO = 0.54;
+  const BARCODE_Y_RATIO = 0.62;
+
+  let labelW = bw / BARCODE_WIDTH_RATIO;
   let labelH = labelW * 1.5;
+  // Clamp to page bounds while preserving 4:6 aspect
   if (labelW > pdfW) { labelW = pdfW; labelH = labelW * 1.5; }
   if (labelH > pdfH) { labelH = pdfH; labelW = labelH / 1.5; }
 
   let x = cx - labelW / 2;
-  const yFromTop = cy - labelH * 0.62;
+  const yFromTop = cy - labelH * BARCODE_Y_RATIO;
   let yPdf = pdfH - yFromTop - labelH;
 
   x = Math.max(0, Math.min(pdfW - labelW, x));
