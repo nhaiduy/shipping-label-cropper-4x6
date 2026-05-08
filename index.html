@@ -603,25 +603,24 @@ async function detectBarcodeOnPage(item) {
 }
 
 function computeCropFromBarcode(det, item) {
-  const { cx, cy, bw } = det;
+  const { cx, cy } = det;
   const { pdfW, pdfH } = item;
-  // Heuristic: tracking barcode is ~54% of label width on Canada Post / USPS labels,
-  // and sits ~62% from the top of the label.
-  const BARCODE_WIDTH_RATIO = 0.54;
-  // Note: ZXing reports y of a single scanline rather than the barcode's vertical
-  // center, so this empirical value is lower than the actual barcode-to-label-top ratio.
-  const BARCODE_Y_RATIO = 0.50;
 
-  let labelW = bw / BARCODE_WIDTH_RATIO;
-  let labelH = labelW * 1.5;
-  // Clamp to page bounds while preserving 4:6 aspect
-  if (labelW > pdfW) { labelW = pdfW; labelH = labelW * 1.5; }
-  if (labelH > pdfH) { labelH = pdfH; labelW = labelH / 1.5; }
+  // Output is always exactly 4×6 inches (288 × 432 pts at 72 pts/in) — the standard
+  // thermal label size. We use the barcode only for *positioning*, not for sizing.
+  const labelW = 288;
+  const labelH = 432;
+
+  // Barcode is horizontally centered on the label.
+  // Vertically, ZXing's cy is the y of a single decoded scanline (not the barcode
+  // centroid), so this empirical value is below the true geometric ratio.
+  const BARCODE_Y_RATIO = 0.50;
 
   let x = cx - labelW / 2;
   const yFromTop = cy - labelH * BARCODE_Y_RATIO;
   let yPdf = pdfH - yFromTop - labelH;
 
+  // Clamp so the 4×6 box stays inside the source page
   x = Math.max(0, Math.min(pdfW - labelW, x));
   yPdf = Math.max(0, Math.min(pdfH - labelH, yPdf));
   return { x, y: yPdf, w: labelW, h: labelH };
